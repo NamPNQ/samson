@@ -1,11 +1,53 @@
 require_relative '../test_helper'
 
 describe Release do
+  describe "create" do
+    let(:project) { projects(:test) }
+    let(:author) { users(:deployer) }
+    let(:service) { ReleaseService.new(project) }
+    let(:commit) { "abcd" }
+    let(:release_params_used) { [] }
+
+    before do
+      GITHUB.stubs(:create_release).capture(release_params_used)
+    end
+
+    it "creates a new release" do
+      release = project.releases.create!(commit: commit, author: author)
+      assert_equal 1, release.number
+    end
+
+    it "increments the release number" do
+      release = project.releases.create!(author: author, commit: "bar")
+      release.update_column(:number, 41)
+      release = project.releases.create!(commit: "foo", author: author)
+      assert_equal 42, release.number
+    end
+
+    it "tags the release" do
+      release = project.releases.create!(commit: commit, author: author)
+      assert_equal [[project.github_repo, 'v1', target_commitish: commit]], release_params_used
+    end
+
+    it "deploys the commit to stages if they're configured to" do
+      stage = project.stages.create!(name: "production", deploy_on_release: true)
+      release = project.releases.create!(commit: commit, author: author)
+
+      assert_equal release.version, stage.deploys.first.reference
+    end
+  end
+
   describe "#currently_deploying_stages" do
     let(:project) { projects(:test) }
     let(:author) { users(:deployer) }
     let(:stage) { project.stages.create!(name: "One") }
-    let(:release) { project.releases.create!(number: 42, author: author, commit: "xyz") }
+    let(:release) do
+      release = project.releases.create!(author: author, commit: "xyz")
+      release.update_column(:number, 42)
+      release
+    end
+
+    before { GITHUB.stubs(:create_release) }
 
     it "returns stages where the release is pending deploy" do
       create_deploy!(reference: "v42", status: "pending")
@@ -55,12 +97,13 @@ describe Release do
   describe "#changeset" do
     let(:project) { projects(:test) }
     let(:author) { users(:deployer) }
+    before { GITHUB.stubs(:create_release) }
 
     it "returns changeset" do
-      release_1 = project.create_release(commit: "bar", author: author, number: 50)
-      release_2 = project.create_release(commit: "foo", author: author)
+      project.releases.create!(commit: "bar", author: author, number: 50)
+      release = project.releases.create!(commit: "foo", author: author)
 
-      assert_equal 'bar...foo', release_2.changeset.commit_range
+      assert_equal 'bar...foo', release.changeset.commit_range
     end
 
     it 'returns empty changeset when there is no prior release' do

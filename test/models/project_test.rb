@@ -17,6 +17,8 @@ describe Project do
   end
 
   describe "#last_released_with_commit?" do
+    before { GITHUB.stubs(:create_release) }
+
     it "returns true if the last release had that commit" do
       project.releases.create!(commit: "XYZ", author: author)
       assert project.last_released_with_commit?("XYZ")
@@ -24,6 +26,10 @@ describe Project do
 
     it "returns false if the last release had a different commit" do
       project.releases.create!(commit: "123", author: author)
+      assert !project.last_released_with_commit?("XYZ")
+    end
+
+    it "returns false if there have been no releases" do
       assert !project.last_released_with_commit?("XYZ")
     end
   end
@@ -34,36 +40,6 @@ describe Project do
     other_project.repository_url = 'git://hello'
 
     assert_not_equal project.repository_directory, other_project.repository_directory
-  end
-
-  describe "#create_release" do
-    let(:project) { projects(:test) }
-    let(:author) { users(:deployer) }
-
-    it "returns false if there have been no releases" do
-      assert !project.last_released_with_commit?("XYZ")
-    end
-  end
-
-  describe "#create_release" do
-    it "creates a new release" do
-      release = project.create_release(commit: "foo", author: author)
-
-      assert release.persisted?
-    end
-
-    it "defaults to release number 1" do
-      release = project.create_release(commit: "foo", author: author)
-
-      assert_equal 1, release.number
-    end
-
-    it "increments the release number" do
-      project.releases.create!(author: author, commit: "bar", number: 41)
-      release = project.create_release(commit: "foo", author: author)
-
-      assert_equal 42, release.number
-    end
   end
 
   describe "#webhook_stages_for_branch" do

@@ -17,7 +17,7 @@ class ReleasesController < ApplicationController
   end
 
   def create
-    @release = ReleaseService.new(@project).create_release(release_params)
+    @release = @project.releases.create!(release_params)
     redirect_to project_release_path(@project, @release)
   end
 
