@@ -34,6 +34,9 @@ Streaming is done through a [controller](app/controllers/streams_controller.rb) 
 
 #### Setup
 
+Install requirments
+`apt-get install ruby-dev libmysqlclient-dev libsqlite3-dev`
+
 Run the bootstrap script to use the test credentials.
 
 ```bash
